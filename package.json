@@ -11,7 +11,8 @@
     "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
     "lint": "eslint .",
     "a11y": "node scripts/a11y-check.mjs",
-    "check": "npm run lint && npm test"
+    "check": "eslint . && prettier --check . && node --test test/*.test.js",
+    "format": "prettier --write ."
   },
   "engines": {
     "node": ">=20.12"
@@ -25,6 +26,7 @@
     "@eslint/js": "^9.39.5",
     "axe-core": "^4.14.0",
     "eslint": "^9.39.5",
-    "globals": "^15.15.0"
+    "globals": "^15.15.0",
+    "prettier": "^3.9.10"
   }
 }

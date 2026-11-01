@@ -100,7 +100,7 @@ public/js/overlays.js     dialogs and drawers with focus management
 public/js/actions.js      every click, key and form handler (event delegation)
 public/js/util.js, i18n.js, state.js, api.js, auth.js, live.js   small focused modules
 public/traditions.js      regional traditions and their functions, shared by server and browser
-test/                     36 node:test tests (unit + API on the real Express app)
+test/                     37 node:test tests (unit + API on the real Express app)
 scripts/a11y-check.mjs    axe-core accessibility audit of every screen
 ```
 
@@ -146,7 +146,7 @@ Checked with axe-core against WCAG 2.1 A/AA on 20 screens (desktop and phone): *
 ## Tests
 
 ```
-npm run check          # ESLint + Prettier check + 36 tests
+npm run check          # ESLint + Prettier check + 37 tests
 npm run test:coverage  # about 92% line coverage
 ```
 

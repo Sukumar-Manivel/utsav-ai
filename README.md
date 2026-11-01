@@ -7,7 +7,9 @@ Utsav AI turns a wedding, birthday or community event into a full plan in second
 
 > Built for families, not agencies.
 
-Live app: `https://utsav-ai-510810666377.asia-south1.run.app` · Demo video: `https://youtu.be/hEyg1QWsZZM`
+Live app: [Utsav AI Live Demo](https://utsav-ai-510810666377.asia-south1.run.app)
+
+Demo video: [Watch Utsav AI Demo](https://youtu.be/hEyg1QWsZZM)
 
 ---
 

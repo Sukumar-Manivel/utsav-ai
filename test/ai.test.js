@@ -26,7 +26,7 @@ test('Gemini calls skip a model whose quota is used up and use the next one', as
 });
 
 // ---- Gemini drafts and Google Places vendors, with the network replaced by fakes ----
-import { aiPlan, findVendors, sampleVendors } from '../lib/ai.js';
+import { aiHelperAnswer, aiPlan, findVendors, sampleVendors } from '../lib/ai.js';
 import { buildPlan, validateInput, todayISO } from '../lib/plan.js';
 
 const jsonClient = (reply) => ({ models: { generateContent: async () => ({ text: JSON.stringify(reply) }) } });
@@ -147,4 +147,21 @@ test('when Places fails the app shows labelled examples with a note', async (t) 
   );
   assert.equal(out.source, 'sample');
   assert.match(out.note, /unavailable/);
+});
+
+test('the advice chat is told it cannot change the plan', async () => {
+  let system = '';
+  __test.setClient({
+    models: {
+      generateContent: async ({ config }) => {
+        system = config.systemInstruction;
+        return { text: 'Use the Ask Utsav button at the top to change the budget.' };
+      },
+    },
+  });
+  const ev = buildPlan(input, null);
+  const reply = await aiHelperAnswer(ev, ev.cats[0], 'Cut budget by 10%', 'en');
+  assert.match(system, /cannot change the plan/);
+  assert.match(system, /Never say you changed/);
+  assert.match(reply, /Ask Utsav/);
 });

@@ -2,87 +2,11 @@
    #/              landing            #/new         plan wizard
    #/events        host's events      #/e/:id/:view host (orbit | budget | timeline | family)
    #/h/:token/:tab helper app (today | steps | vendors | ask)                                  */
+/* global firebase */
 import { TRADITIONS, getTradition, allFunctions } from '/traditions.js';
 
-// ---------------------------------------------------------------- utils
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const inr = (n) => '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
-const inrShort = (n) => n >= 1e7 ? `₹${+(n / 1e7).toFixed(2)} Cr` : n >= 1e5 ? `₹${+(n / 1e5).toFixed(1)} L` : inr(n);
-const DAY = 864e5;
-const todayISO = (o = 0) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + o); return d.toLocaleDateString('en-CA'); };
-const dateOf = (iso) => new Date(iso + 'T00:00:00');
-const daysLeft = (iso) => Math.round((dateOf(iso) - dateOf(todayISO())) / DAY);
-const fmtD = (iso) => dateOf(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-const fmtLong = (iso) => dateOf(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-const ic = (n, cls = '') => `<svg class="ico ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
-const initials = (n) => String(n || '?').replace(/^(Uncle|Aunt|Chithi|Chithappa|Cousin)\s+/i, '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-const ls = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } },
-};
-const randHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('');
-
-const TYPE_LABEL = { wedding: 'Wedding', birthday: 'Birthday', community: 'Community event' };
-const TYPE_ICON = { wedding: 'rings', birthday: 'cake', community: 'people' };
-const PILL_ICON = { venue: 'doc', guests: 'send', transport: 'transport', food: 'doc', decor: 'decor', entertainment: 'entertainment', photos: 'photos', music: 'music' };
-const RING_COL = { ok: '#86D3B5', done: '#86D3B5', soon: '#E9C98A', late: '#F0957A' };
-const STATUS_WORD = { ok: 'On track', done: 'Done', soon: 'Due soon', late: 'Overdue' };
-
-const pct = (c) => c.steps.length ? Math.round(c.steps.filter((s) => s.done).length / c.steps.length * 100) : 0;
-const readyOf = (cats) => { let d = 0, t = 0; cats.forEach((c) => { t += c.steps.length; d += c.steps.filter((s) => s.done).length; }); return t ? Math.round(d / t * 100) : 0; };
-const status = (c) => { const p = c.pct ?? pct(c); if (p === 100) return 'done'; const l = daysLeft(c.due); return l < 0 ? 'late' : l <= 7 ? 'soon' : 'ok'; };
-const nextIdx = (c) => c.steps.findIndex((s) => !s.done);
-
-// ---------------------------------------------------------------- helper-language text
-const CAT_TA = { venue: 'மண்டபம்', food: 'உணவு', decor: 'அலங்காரம்', guests: 'விருந்தினர்', transport: 'போக்குவரத்து', entertainment: 'கேளிக்கை', photos: 'புகைப்படம்', music: 'இசை' };
-const FLAGS = {
-  venue: { en: ['Extra charge for overtime after the event', 'Generator and cleaning billed separately', 'Deposit refund rules not written'], ta: ['நிகழ்ச்சிக்குப் பின் கூடுதல் நேரக் கட்டணம்', 'ஜெனரேட்டர், சுத்தம் தனியாக வசூல்', 'முன்பணத் திருப்பி விதிகள் எழுத்தில் இல்லை'] },
-  food: { en: ['Hidden travel or gas charge', 'More than 30% advance', 'No written per-plate quote'], ta: ['மறைமுக பயண அல்லது எரிவாயு கட்டணம்', '30%-க்கு மேல் முன்பணம்', 'எழுத்துப்பூர்வ தட்டு விலை இல்லை'] },
-  decor: { en: ['Fresh flowers not in the quote', 'Setup may start late', 'Power backup for lights unclear'], ta: ['புதிய பூக்கள் விலையில் இல்லை', 'அமைப்பு தாமதமாகத் தொடங்கலாம்', 'விளக்குகளுக்கு மின் காப்பு தெளிவில்லை'] },
-  guests: { en: ['Printer delivery date not written', 'Some guests have no address', 'Return gift count not confirmed'], ta: ['அச்சக டெலிவரி தேதி எழுத்தில் இல்லை', 'சில விருந்தினர்களின் முகவரி இல்லை', 'திருப்பி பரிசு எண்ணிக்கை உறுதியாகவில்லை'] },
-  transport: { en: ['Waiting charge after free time', 'Late-night surcharge', 'Driver names and numbers missing'], ta: ['இலவச நேரத்திற்குப் பின் காத்திருப்புக் கட்டணம்', 'இரவு நேரக் கூடுதல் கட்டணம்', 'ஓட்டுநர் பெயர், எண் இல்லை'] },
-  entertainment: { en: ['Overtime billed per hour', 'Sound system not included', 'Song list not agreed in advance'], ta: ['கூடுதல் நேரத்திற்கு மணிக்குக் கட்டணம்', 'ஒலி அமைப்பு சேர்க்கப்படவில்லை', 'பாடல் பட்டியல் முன்பே முடிவாகவில்லை'] },
-  photos: { en: ['Album delivery date not written', 'Raw photos cost extra', 'Drone permission not included'], ta: ['ஆல்பம் தேதி எழுத்தில் இல்லை', 'மூல புகைப்படங்களுக்கு கூடுதல் கட்டணம்', 'ட்ரோன் அனுமதி சேர்க்கப்படவில்லை'] },
-  music: { en: ['Travel charge for the troupe', 'Overtime billed per hour', 'Power for the sound system not included'], ta: ['குழுவின் பயணக் கட்டணம்', 'கூடுதல் நேரத்திற்கு மணிக்குக் கட்டணம்', 'ஒலி அமைப்பு மின்சாரம் சேர்க்கப்படவில்லை'] },
-};
-const T = {
-  en: {
-    greet: 'Vanakkam', tag: 'Big days happen with small steps', cap: 'Budget cap', left: 'days left', status: 'Status',
-    now: 'Do this now', start: 'Start calling', mark: 'Mark as done', steps: 'Your steps', near: (c) => `Top ${c.toLowerCase()} options near you`,
-    flags: 'Watch out for these', ask: (c) => `Ask Utsav about ${c.toLowerCase()}`, type: 'Type or speak your question',
-    family: 'Family progress', view: 'View only. You can change only your own task.', alldone: 'Your part is complete',
-    alldoneP: 'The host can see it on the family orbit. Thank you!', quote: 'Best quote so far (₹)', notes: 'Notes for the host', save: 'Save',
-    myTask: 'My task', vendors: 'Vendors', askShort: 'Ask', call: 'Call', viewBtn: 'View', mine: 'Quotes and notes',
-    chips: ['What is a fair price?', 'How much advance is okay?', 'How do I compare quotes?'],
-    hint: 'Use the call script so every vendor gets the same questions, and ask for the price in writing.',
-    words: { ok: 'On track', done: 'Done', soon: 'Due soon', late: 'Overdue' }, aiNote: 'Answers only about your task.',
-    qs: (d) => [`Are you free on ${d}?`, 'What exactly is included in the price?', 'Any extra charges: travel, overtime, staff?', 'How much advance do you take?', 'Can you send the full quote on WhatsApp?'],
-    script: (e, c) => `Vanakkam, I'm calling about ${e.title} on ${fmtLong(e.date)} in ${e.city}, for about ${e.guests} guests. I'm looking after the ${c.toLowerCase()} arrangements. Are you free on that date? What is included in your price, and are there any extra charges? How much advance do you take? Could you send the full quote on WhatsApp?`,
-  },
-  ta: {
-    greet: 'வணக்கம்', tag: 'சிறிய படிகள், பெரிய நாள்', cap: 'பட்ஜெட் வரம்பு', left: 'நாட்கள் உள்ளன', status: 'நிலை',
-    now: 'இப்போது செய்யுங்கள்', start: 'அழைக்கத் தொடங்கு', mark: 'முடிந்தது', steps: 'உங்கள் படிகள்', near: () => 'அருகிலுள்ள சிறந்த விருப்பங்கள்',
-    flags: 'இவற்றைக் கவனியுங்கள்', ask: () => 'உத்சவிடம் கேளுங்கள்', type: 'கேள்வியை எழுதுங்கள் அல்லது பேசுங்கள்',
-    family: 'குடும்ப முன்னேற்றம்', view: 'பார்வை மட்டும். உங்கள் பணியை மட்டுமே மாற்றலாம்.', alldone: 'உங்கள் பணி முடிந்தது',
-    alldoneP: 'குடும்பத்தினர் இதைப் பார்க்கலாம். நன்றி!', quote: 'இதுவரை சிறந்த விலை (₹)', notes: 'உரிமையாளருக்கான குறிப்புகள்', save: 'சேமி',
-    myTask: 'என் பணி', vendors: 'விற்பனையாளர்', askShort: 'கேள்', call: 'அழை', viewBtn: 'பார்', mine: 'விலை மற்றும் குறிப்புகள்',
-    chips: ['நியாயமான விலை என்ன?', 'எவ்வளவு முன்பணம் சரி?', 'விலைகளை ஒப்பிடுவது எப்படி?'],
-    hint: 'ஒவ்வொருவரிடமும் ஒரே கேள்விகளைக் கேட்க அழைப்பு உரையைப் பயன்படுத்துங்கள். விலையை எழுத்தில் வாங்குங்கள்.',
-    words: { ok: 'சரியான பாதை', done: 'முடிந்தது', soon: 'விரைவில்', late: 'தாமதம்' }, aiNote: 'உங்கள் பணி பற்றி மட்டும் பதில்.',
-    qs: (d) => [`${d} அன்று நீங்கள் கிடைப்பீர்களா?`, 'விலையில் என்னென்ன அடங்கும்?', 'பயணம், கூடுதல் நேரம், பணியாளர் கட்டணம் உண்டா?', 'முன்பணம் எவ்வளவு?', 'முழு விலையை வாட்ஸ்அப்பில் அனுப்ப முடியுமா?'],
-    script: (e, c, id) => `வணக்கம், ${fmtLong(e.date)} அன்று ${e.city}-இல் நடக்கும் ${e.title} நிகழ்ச்சிக்காக அழைக்கிறேன். சுமார் ${e.guests} பேர் வருவார்கள். ${CAT_TA[id] || c} ஏற்பாடுகளை நான் பார்த்துக்கொள்கிறேன். அன்று நீங்கள் கிடைப்பீர்களா? விலையில் என்னென்ன அடங்கும், கூடுதல் கட்டணம் ஏதேனும் உண்டா? முன்பணம் எவ்வளவு? முழு விலையை வாட்ஸ்அப்பில் அனுப்ப முடியுமா?`,
-  },
-};
-function stepHint(t) {
-  t = t.toLowerCase();
-  if (/review|compare|shortlist/.test(t)) return 'Compare menus, reviews and pricing to choose your top 2.';
-  if (/book|confirm|pay|advance/.test(t)) return 'Get the full quote on WhatsApp first, then pay a 20–30% advance.';
-  if (/send|invite/.test(t)) return 'Send the WhatsApp invite to everyone still on the list.';
-  if (/call|quote/.test(t)) return 'Use the call script so every vendor gets the same questions.';
-  return 'Tick it off once it is done so the family sees progress.';
-}
+import { $, $$, esc, inr, inrShort, DAY, todayISO, dateOf, daysLeft, fmtD, fmtLong, ic, initials, ls, randHex, TYPE_LABEL, TYPE_ICON, PILL_ICON, RING_COL, STATUS_WORD, pct, readyOf, status, nextIdx } from '/js/util.js';
+import { CAT_TA, FLAGS, T, stepHint } from '/js/i18n.js';
 
 // ---------------------------------------------------------------- state
 const S = {
@@ -121,7 +45,11 @@ init();
 async function init() {
   starfield();
   try { S.cfg = await api('/api/config'); } catch { /* keep defaults */ }
-  addEventListener('hashchange', () => { S.menu = false; closeOverlay(); route(); scrollTo(0, 0); });
+  addEventListener('hashchange', async () => {
+    S.menu = false; closeOverlay(); await route(); scrollTo(0, 0);
+    // tell screen readers the page changed: focus the main area (its h1 is read first)
+    $('#app')?.focus({ preventScroll: true });
+  });
   addEventListener('resize', () => { const m = innerWidth < 1100; if (m !== S.isM) { S.isM = m; render(); } else fitStage(); });
   route();
   if (S.cfg.firebase) loadFirebase();
@@ -191,8 +119,19 @@ function render() {
   else if (r.name === 'events') { html = viewEvents(); }
   else if (r.name === 'host') html = S.ev ? viewHost() : viewLoading();
   else if (r.name === 'helper') html = S.h ? viewHelper() : viewLoading();
+  const keep = focusKey(document.activeElement);
   app.innerHTML = html;
+  document.documentElement.lang = r.name === 'helper' && S.lang === 'ta' ? 'ta' : 'en';
+  document.title = pageTitle(r);
+  if (keep && !S.overlayOpen) $(keep)?.focus({ preventScroll: true });
   afterRender();
+}
+function pageTitle(r) {
+  const ev = S.ev?.title, name = { landing: 'Plan together, celebrate together', new: 'New plan', events: 'My celebrations' }[r.name];
+  if (name) return `Utsav AI · ${name}`;
+  if (r.name === 'host') return `${ev || 'Plan'} · ${r.view[0].toUpperCase()}${r.view.slice(1)} · Utsav AI`;
+  if (r.name === 'helper') return `${S.h?.me?.name ? S.h.me.name + ' · ' : ''}${r.tab[0].toUpperCase()}${r.tab.slice(1)} · Utsav AI`;
+  return 'Utsav AI';
 }
 function afterRender() {
   fitStage();
@@ -230,7 +169,7 @@ function renderError(e, kind) {
       ${inactive ? '' : '<button class="btn btn-coral" data-act="retry">Try again</button>'}
       <a class="btn btn-ghost" href="#/">Go to home</a></div></div></div>`;
 }
-const logo = (sub = 'A more<br>memorable<br>tomorrow') => `<a class="logo" href="#/" aria-label="Utsav AI home"><b>Utsav</b><span class="bar"></span><small>${sub}</small></a>`;
+const logo = (sub = 'A more<br>memorable<br>tomorrow') => `<a class="logo" href="#/"><b>Utsav</b><span class="sr"> AI home:</span><span class="bar"></span><small>${sub}</small></a>`;
 function avatar(person, size = 44, extra = '') {
   if (!person) return `<span class="avatar ini" style="width:${size}px;height:${size}px;background:rgba(255,255,255,.06);color:var(--gold);box-shadow:inset 0 0 0 1.5px rgba(233,194,138,.5)" aria-hidden="true">${ic('plus')}</span>`;
   return person.avatar ? `<img class="avatar ${extra}" src="${esc(person.avatar)}" alt="" style="width:${size}px;height:${size}px">`
@@ -294,9 +233,9 @@ function viewLanding() {
     </div>
   </section>
   <section class="journey" aria-label="How it works">
-    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h3>AI makes the plan</h3><p>Tell us the event, city, guests and budget. Gemini builds the budget split, timeline and ideas for your rituals.</p></div>
-    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h3>The family splits the work</h3><p>Give Sana the food and Aarav the venue. Each gets a private WhatsApp link. No app, no sign-up.</p></div>
-    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h3>Every helper gets a coach</h3><p>A next step, a call script in Tamil or English, red flags to avoid and real vendors from Google Maps.</p></div>
+    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h2>AI makes the plan</h2><p>Tell us the event, city, guests and budget. Gemini builds the budget split, timeline and ideas for your rituals.</p></div>
+    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h2>The family splits the work</h2><p>Give Sana the food and Aarav the venue. Each gets a private WhatsApp link. No app, no sign-up.</p></div>
+    <div><span class="lampi"><svg viewBox="0 0 40 40"><use href="#i-lamp"/></svg></span><h2>Every helper gets a coach</h2><p>A next step, a call script in Tamil or English, red flags to avoid and real vendors from Google Maps.</p></div>
   </section>
   <section class="l-tags">
     <p class="tag-poem">People<br>Plans<br>Possibilities<br>All in one orbit.</p>
@@ -382,7 +321,7 @@ function viewEvents() {
    <p class="lede">${S.fbUser ? `Signed in as ${esc(S.fbUser.displayName || S.fbUser.email)}.` : 'Plans you made in this browser. Sign in with Google to open them on other devices.'}</p>
    ${!list ? `<div class="evlist">${[0, 1].map(() => '<div class="skel" style="height:92px;border-radius:999px"></div>').join('')}</div>`
     : list.length ? `<div class="evlist">${list.map((e) => `<a class="evcard glass" href="#/e/${e.id}/orbit"><span class="mini"><span class="planet" style="display:block">${e.hero ? `<img src="${esc(e.hero)}" alt="">` : dialArt(e.type)}</span></span><span style="flex:1;min-width:0"><b>${esc(e.title)}</b><small>${fmtLong(e.date)} · ${esc(e.city)}</small></span><span class="ring" style="position:relative;width:50px;height:50px;display:grid;place-items:center">${ring('ev' + e.id, e.ready, '#86D3B5')}<span style="position:absolute;font-size:12px">${e.ready}%</span></span></a>`).join('')}</div>`
-    : `<div class="panel empty" style="margin-top:26px;max-width:560px"><h3>No plans yet</h3><p>Start a new plan, or open the sample to see how it works.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a class="btn btn-coral" href="#/new">Start my plan</a><button class="btn btn-ghost" data-act="sample">Open the sample</button></div></div>`}
+    : `<div class="panel empty" style="margin-top:26px;max-width:560px"><h2>No plans yet</h2><p>Start a new plan, or open the sample to see how it works.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a class="btn btn-coral" href="#/new">Start my plan</a><button class="btn btn-ghost" data-act="sample">Open the sample</button></div></div>`}
   </div>`;
 }
 async function loadEvents() {
@@ -439,7 +378,7 @@ function linkPath(sl) {
 function orbit(ev) {
   const sel = selCat(), cats = ev.cats.slice(0, 6), ready = readyOf(ev.cats);
   const paths = cats.map((c, i) => linkPath(SLOTS[i]));
-  return `<span class="orbit-ring1" aria-hidden="true"></span><span class="orbit-ring2" aria-hidden="true"></span>
+  return `<h1 class="sr">${esc(ev.title)}: family orbit</h1><span class="orbit-ring1" aria-hidden="true"></span><span class="orbit-ring2" aria-hidden="true"></span>
   <svg class="links" width="1440" height="810" viewBox="0 0 1440 810" aria-hidden="true">${paths.map((d) => `<path d="${d}" fill="none" stroke="rgba(246,200,150,.55)" stroke-width="1.2" stroke-dasharray="1 5" stroke-linecap="round"/>`).join('')}</svg>
   ${paths.map((d, i) => `<span class="bead" style="offset-path:path('${d}');offset-distance:38%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px"></span><span class="bead" style="offset-path:path('${d}');offset-distance:72%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px"></span><span class="bead run" style="offset-path:path('${d}');width:6px;height:6px;margin:-3px 0 0 -3px;animation-delay:${(i * .55).toFixed(2)}s"></span>`).join('')}
   <div class="planet-in">${planet(ev, 262, ready)}</div>
@@ -450,11 +389,11 @@ function node(ev, c, i, sel) {
   const sl = SLOTS[i], on = c.id === sel.id, p = pct(c), st = status(c), L = lead(ev, c), n = nextIdx(c);
   const next = n < 0 ? 'All steps done' : c.steps[n].t;
   return `<div class="node" style="left:${sl.x}px;top:${sl.y}px;width:${sl.w}px;animation-delay:${(i * .9).toFixed(1)}s"><div class="in" style="animation-delay:${(.35 + i * .12).toFixed(2)}s">
-   <button class="cap ${on ? 'on' : ''}" data-act="sel" data-cat="${c.id}" aria-pressed="${on}" aria-label="${esc(c.name)}, ${L ? 'led by ' + esc(L.name) : 'no helper yet'}, ${p}% done, ${STATUS_WORD[st]}">
+   <button class="cap ${on ? 'on' : ''}" data-act="sel" data-cat="${c.id}" aria-pressed="${on}">
      <svg class="cico" aria-hidden="true"><use href="#i-${c.icon}"/></svg>
      ${avatar(L, 50)}
-     <span class="meta"><b style="${c.name.length > 10 ? 'font-size:18px' : ''}">${esc(c.name)}</b><small>${L ? esc(L.name) : 'No helper yet'}</small><small class="st-${st}">Due ${fmtD(c.due)}</small></span>
-     <span class="ring">${ring('n' + c.id, p, RING_COL[st], 46)}<span>${p}%</span></span>
+     <span class="meta"><b style="${c.name.length > 10 ? 'font-size:18px' : ''}">${esc(c.name)}</b><small>${L ? esc(L.name) : 'No helper yet'}</small><small class="st-${st}">Due ${fmtD(c.due)}<span class="sr">, ${STATUS_WORD[st]}</span></small></span>
+     <span class="ring">${ring('n' + c.id, p, RING_COL[st], 46)}<span>${p}%<span class="sr"> done</span></span></span>
    </button>
    <div class="pillrow" style="animation-delay:${(.7 + i * .12).toFixed(2)}s">${L ? `<span class="pill">${ic(PILL_ICON[c.id] || 'doc')}${esc(next)}</span>` : `<button class="pill" data-act="assign" data-cat="${c.id}">${ic('plus')}Assign a helper</button>`}</div>
   </div></div>`;
@@ -571,7 +510,7 @@ function stepRows(ev) {
   const rows = [];
   ev.cats.forEach((c) => c.steps.forEach((s, i) => {
     const back = (c.steps.length - 1 - i) * 3;
-    let d = s.by || new Date(dateOf(c.due).getTime() - back * DAY).toLocaleDateString('en-CA');
+    const d = s.by || new Date(dateOf(c.due).getTime() - back * DAY).toLocaleDateString('en-CA');
     rows.push({ c, s, i, d });
   }));
   return rows.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
@@ -579,14 +518,14 @@ function stepRows(ev) {
 function fnStrip(ev) {
   const fs = ev.functions || [];
   if (!fs.length) return '';
-  return `<div class="tl-group"><h3>Functions<span>${esc(ev.tradition && ev.tradition.id !== 'custom' ? ev.tradition.name : 'Your own mix')}</span></h3>
-    <div class="fnstrip">${fs.map((f) => `<div class="fncard ${f.main ? 'main' : ''} ${daysLeft(f.date) < 0 ? 'past' : ''}"><span class="fdate"><b>${dateOf(f.date).getDate()}</b>${dateOf(f.date).toLocaleDateString('en-IN', { month: 'short' })}</span><span><b>${esc(f.name)}</b><small>${f.when ? esc(f.when) + ' · ' : ''}${f.cats.map((id) => esc(ev.cats.find((c) => c.id === id)?.name || '')).filter(Boolean).join(', ') || 'Whole family'}</small></span>${f.main ? '<em>Main</em>' : ''}</div>`).join('')}</div></div>`;
+  return `<div class="tl-group"><h2>Functions<span>${esc(ev.tradition && ev.tradition.id !== 'custom' ? ev.tradition.name : 'Your own mix')}</span></h2>
+    <div class="fnstrip" role="region" aria-label="Functions" tabindex="0">${fs.map((f) => `<div class="fncard ${f.main ? 'main' : ''} ${daysLeft(f.date) < 0 ? 'past' : ''}"><span class="fdate"><b>${dateOf(f.date).getDate()}</b>${dateOf(f.date).toLocaleDateString('en-IN', { month: 'short' })}</span><span><b>${esc(f.name)}</b><small>${f.when ? esc(f.when) + ' · ' : ''}${f.cats.map((id) => esc(ev.cats.find((c) => c.id === id)?.name || '')).filter(Boolean).join(', ') || 'Whole family'}</small></span>${f.main ? '<em>Main</em>' : ''}</div>`).join('')}</div></div>`;
 }
 function timelineView(ev) {
   const rows = stepRows(ev);
   const g = [['Overdue', (r) => !r.s.done && daysLeft(r.d) < 0], ['This week', (r) => !r.s.done && daysLeft(r.d) >= 0 && daysLeft(r.d) <= 7], ['Next week', (r) => !r.s.done && daysLeft(r.d) > 7 && daysLeft(r.d) <= 14], ['Later', (r) => !r.s.done && daysLeft(r.d) > 14], ['Done', (r) => r.s.done]];
   return `<div class="vhead"><div><h1 class="h-serif">Timeline</h1><p>Every step finishes before ${fmtLong(ev.date)}. Tick a step to update the orbit.</p></div><span class="pill">${ic('cal')}${daysLeft(ev.date)} days to go</span></div>
-   <div class="scroll">${fnStrip(ev)}${g.map(([name, f]) => { const rs = rows.filter(f); if (!rs.length) return ''; return `<div class="tl-group"><h3>${name}<span>${rs.length} ${rs.length === 1 ? 'step' : 'steps'}</span></h3>
+   <div class="scroll">${fnStrip(ev)}${g.map(([name, f]) => { const rs = rows.filter(f); if (!rs.length) return ''; return `<div class="tl-group"><h2>${name}<span>${rs.length} ${rs.length === 1 ? 'step' : 'steps'}</span></h2>
     ${rs.map((r) => { const L = lead(ev, r.c); return `<div class="tl-row ${r.s.done ? 'is-done' : ''}"><button class="check" data-act="step" data-cat="${r.c.id}" data-i="${r.i}" aria-pressed="${r.s.done}" aria-label="${r.s.done ? 'Mark not done' : 'Mark done'}: ${esc(r.s.t)}">${r.s.done ? ic('check') : ''}</button>
      <span class="what"><b>${esc(r.s.t)}</b><small>${esc(r.c.name)}${r.s.fn ? ` · for ${esc(r.s.fn)}` : ''} · ${L ? esc(L.name) : 'No helper yet'}</small></span><span class="when ${!r.s.done && daysLeft(r.d) < 0 ? 'st-late' : ''}">${fmtD(r.d)}</span>${avatar(L, 32)}</div>`; }).join('')}</div>`; }).join('')}</div>`;
 }
@@ -604,9 +543,9 @@ function familyView(ev) {
        <div class="pbar"><i style="width:0" data-w="${p}%"></i></div>
        ${h.revoked ? `<p class="label">Link removed. Create a new one to let ${esc(h.name)} back in.</p>` : ''}
        <div class="acts">${h.revoked ? `<button class="btn btn-gold btn-sm" data-act="newlink" data-h="${id}">${ic('plus')}Create new link</button>` : `<button class="btn btn-teal btn-sm" data-act="wa" data-h="${id}">${ic('chat')}Share on WhatsApp</button><button class="btn btn-ghost btn-sm" data-act="copylink" data-h="${id}">${ic('copy')}Copy link</button><button class="btn btn-ghost btn-sm" data-act="openview" data-h="${id}">${ic('eye')}Their view</button><button class="btn btn-ghost btn-sm btn-icon" data-act="revoke" data-h="${id}" aria-label="Remove ${esc(h.name)}'s link">${ic('x')}</button>`}</div></article>`; }).join('')}</div>`
-      : `<div class="panel empty"><h3>No helpers yet</h3><p>Add a relative, give them a category and send their link on WhatsApp. They can start without signing up.</p><button class="btn btn-gold" data-act="addhelper">${ic('plus')}Add helper</button></div>`}
+      : `<div class="panel empty"><h2>No helpers yet</h2><p>Add a relative, give them a category and send their link on WhatsApp. They can start without signing up.</p><button class="btn btn-gold" data-act="addhelper">${ic('plus')}Add helper</button></div>`}
     ${unassigned.length ? `<div class="unassigned"><span class="label">Needs a helper:</span>${unassigned.map((c) => `<button class="chip" data-act="assign" data-cat="${c.id}">${ic(c.icon)}${esc(c.name)}</button>`).join('')}</div>` : ''}
-    <div class="tl-group" style="margin-top:22px"><h3>Recent activity</h3>${ev.activity.slice(-6).reverse().map((a) => `<div class="feed">${ic('spark')}${esc(a.t)}</div>`).join('') || '<p class="lede">Updates from helpers show up here.</p>'}</div>
+    <div class="tl-group" style="margin-top:22px"><h2>Recent activity</h2>${ev.activity.slice(-6).reverse().map((a) => `<div class="feed">${ic('spark')}${esc(a.t)}</div>`).join('') || '<p class="lede">Updates from helpers show up here.</p>'}</div>
    </div>`;
 }
 
@@ -616,7 +555,7 @@ function mobileHost(ev, v) {
   let body = '';
   if (v === 'orbit') {
     const cats = ev.cats.slice(0, 6);
-    body = `<p class="tag-poem" style="font-size:22px;margin:6px 0 0">People, plans, possibilities.<br>All in one orbit.</p>
+    body = `<h1 class="sr">${esc(ev.title)}: family orbit</h1><p class="tag-poem" style="font-size:22px;margin:6px 0 0">People, plans, possibilities.<br>All in one orbit.</p>
     <div class="morbit"><span class="track"></span>${planet(ev, Math.min(innerWidth * .46, 190), ready)}
      ${cats.map((c, i) => { const a = -Math.PI / 2 + i * Math.PI / 3; const st = status(c); return `<div class="bub" style="left:${50 + Math.cos(a) * 41}%;top:${50 + Math.sin(a) * 41}%"><button class="${c.id === sel.id ? 'on' : ''}" data-act="sel" data-cat="${c.id}" aria-label="${esc(c.name)} ${pct(c)}%">${ring('mb' + c.id, pct(c), RING_COL[st], 66, 3).replace('<svg', '<svg class="r"')}${ic(c.icon)}</button><small>${esc(c.name)} ${pct(c)}%</small></div>`; }).join('')}
     </div>
@@ -649,7 +588,7 @@ function viewHelper() {
   const c = d.mine.find((x) => x.id === S.hsel), p = pct(c), st = status(c), n = nextIdx(c), dl = daysLeft(c.due);
   const catName = ta ? (CAT_TA[c.id] || c.name) : c.name;
   const switcher = d.mine.length > 1 ? `<div class="hx-chips">${d.mine.map((m) => `<button data-act="hsel" data-cat="${m.id}" aria-pressed="${m.id === c.id}">${esc(ta ? CAT_TA[m.id] || m.name : m.name)}</button>`).join('')}</div>` : '';
-  const back = (title, extra = '') => `<header class="hx-bar"><a class="hx-back" href="#/h/${S.htoken}/today" aria-label="Back to today">${ic('back')}</a><b>${title}</b>${extra || '<span style="width:40px"></span>'}</header>`;
+  const back = (title, extra = '') => `<header class="hx-bar"><a class="hx-back" href="#/h/${S.htoken}/today" aria-label="Back to today">${ic('back')}</a><h1>${title}</h1>${extra || '<span style="width:40px"></span>'}</header>`;
   let body = '';
 
   if (tab === 'today') {
@@ -729,7 +668,7 @@ function hxVendors(c) {
   const dig = (p) => (p || '').replace(/\D/g, '');
   const call = (v, i, cls) => v.phone ? `<a class="${cls}" href="tel:${esc(v.phone.replace(/\s/g, ''))}" aria-label="Call ${esc(v.name)}">${ic('phone')}${cls.includes('wide') ? (ta ? 'அழை' : 'Call') : ''}</a>` : `<button class="${cls}" data-act="callsheet" data-cat="${c.id}" data-v="${i}" aria-label="Call script for ${esc(v.name)}">${ic('phone')}${cls.includes('wide') ? (ta ? 'அழை' : 'Call') : ''}</button>`;
   const v = top.v, saved = short.some((s) => s.id === v.id), wa = dig(v.phone) ? `https://wa.me/${dig(v.phone).length === 10 ? '91' + dig(v.phone) : dig(v.phone)}` : null;
-  return `<section class="hx-grp hx-top"><button class="hx-img" data-act="vendor" data-cat="${c.id}" data-i="${top.i}" aria-label="Open ${esc(v.name)}"><img src="${esc(v.img)}" alt="">${S.vfilter !== 'short' ? `<span class="hx-badge">${S.vfilter === 'price' ? (ta ? 'குறைந்த விலை' : 'Lowest price') : (ta ? 'சிறந்த பொருத்தம்' : 'Top match')}</span>` : ''}</button>
+  return `<section class="hx-grp hx-top"><button class="hx-img" data-act="vendor" data-cat="${c.id}" data-i="${top.i}"><img src="${esc(v.img)}" alt="Open ${esc(v.name)}">${S.vfilter !== 'short' ? `<span class="hx-badge">${S.vfilter === 'price' ? (ta ? 'குறைந்த விலை' : 'Lowest price') : (ta ? 'சிறந்த பொருத்தம்' : 'Top match')}</span>` : ''}</button>
     <div class="hx-pad"><div class="hx-vt"><b>${esc(v.name)}</b>${v.rating ? `<span>★ ${v.rating} <small>(${v.reviews})</small></span>` : ''}</div>
     <p class="hx-mut" style="margin:2px 0 0">${esc(v.tag || (v.address || '').split(',')[0])}${v.price ? ` · ${esc(v.price)}` : ''}</p>
     <p style="margin:8px 0 0;font-size:15px">${esc(v.estimate || '')} <span class="hx-mut" style="font-size:12.5px">${ta ? 'AI மதிப்பீடு' : 'AI estimate'}</span></p>
@@ -737,15 +676,42 @@ function hxVendors(c) {
     <div class="hx-acts">${call(v, top.i, 'hx-btn gr wide')}${wa ? `<a class="hx-btn g" href="${wa}" target="_blank" rel="noopener" aria-label="WhatsApp">${ic('chat')}</a>` : `<button class="hx-btn g" disabled aria-label="No WhatsApp number">${ic('chat')}</button>`}<a class="hx-btn g" href="${esc(v.maps)}" target="_blank" rel="noopener" aria-label="Open in Maps">${ic('pin')}</a><button class="hx-btn ${saved ? 'y' : 'g'}" data-act="shortlist" data-cat="${c.id}" data-i="${top.i}" aria-label="${saved ? 'Remove from shortlist' : 'Shortlist'}">${ic(saved ? 'saved' : 'save')}</button></div></div></section>
   ${rest.length ? `<div class="hx-lab"><span>${ta ? 'மேலும்' : 'More options'}</span></div><section class="hx-grp">${rest.map(({ v: x, i }) => `<div class="hx-row"><button class="hx-thumb" data-act="vendor" data-cat="${c.id}" data-i="${i}" aria-label="Open ${esc(x.name)}"><img src="${esc(x.img)}" alt=""></button><span class="t"><b>${esc(x.name)}</b><small>${x.rating ? `★ ${x.rating} (${x.reviews}) · ` : ''}${esc(x.tag || '')}</small><small style="color:var(--hx-ink)">${esc(x.estimate || '')}</small></span>${call(x, i, 'hx-call')}</div>`).join('')}</section>` : ''}`;
 }
-function helperTop(me) {
-  return `<header class="topbar">${logo('Big days,<br>small steps')}<div style="display:flex;align-items:center;gap:12px">
-    <div class="lang" role="group" aria-label="Language"><button data-act="lang" data-l="en" aria-pressed="${S.lang === 'en'}">EN</button><button data-act="lang" data-l="ta" aria-pressed="${S.lang === 'ta'}" style="font-family:'Noto Sans Tamil',sans-serif">தமிழ்</button></div>
-    ${avatar(me, 44)}</div></header>`;
-}
 
 // ================================================================= overlays
-function openOverlay(html) { const still = html.includes('drawer still'); S.overlayOpen = true; $('#overlay').innerHTML = `<div class="scrim ${still ? 'still' : ''}" data-act="close"></div>${html}`; setTimeout(() => $('#overlay [autofocus], #overlay input, #overlay textarea')?.focus(), 50); }
-function closeOverlay() { S.overlayOpen = false; $('#overlay').innerHTML = ''; try { speechSynthesis.cancel(); } catch { /* none */ } }
+// ---------------------------------------------------------------- accessibility helpers
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+// A stable key for the focused control, so focus survives a full re-render.
+function focusKey(el) {
+  if (!el || el === document.body) return null;
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  const d = el.dataset || {};
+  if (!d.act) return null;
+  return ['act', 'cat', 'i', 'h', 'v', 't', 'k', 'f', 'l'].filter((k) => d[k] !== undefined).map((k) => `[data-${k}="${CSS.escape(d[k])}"]`).join('');
+}
+// Dialogs: remember what had focus, move focus inside, trap Tab, give it back on close.
+function openOverlay(html) {
+  const still = html.includes('drawer still');
+  if (!S.overlayOpen) S.lastFocus = focusKey(document.activeElement) || S.lastFocus;
+  S.overlayOpen = true;
+  $('#overlay').innerHTML = `<div class="scrim ${still ? 'still' : ''}" data-act="close" aria-hidden="true"></div>${html}`;
+  const dlg = $('#overlay [role="dialog"]');
+  if (dlg) { dlg.setAttribute('aria-modal', 'true'); dlg.setAttribute('tabindex', '-1'); }
+  setTimeout(() => ($('#overlay [autofocus], #overlay input:not([readonly]), #overlay textarea') || dlg)?.focus({ preventScroll: true }), 50);
+}
+function closeOverlay() {
+  const wasOpen = S.overlayOpen;
+  S.overlayOpen = false; $('#overlay').innerHTML = '';
+  try { speechSynthesis.cancel(); } catch { /* none */ }
+  if (wasOpen && S.lastFocus) { $(S.lastFocus)?.focus({ preventScroll: true }); S.lastFocus = null; }
+}
+function trapTab(e) {
+  const items = $$(FOCUSABLE, $('#overlay')).filter((el) => el.offsetParent !== null);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  else if (!$('#overlay').contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+}
 function toast(msg, bad = false) {
   const el = document.createElement('div'); el.className = 'toast';
   el.innerHTML = `${ic(bad ? 'alert' : 'check')}<span>${esc(msg)}</span>`; if (bad) el.querySelector('.ico').style.color = 'var(--rose)';
@@ -773,7 +739,7 @@ function chatDrawer({ title, sub, key, chips, placeholder, form }) {
 }
 function diffCard(m, i) {
   const f = (d, v) => d.money ? inr(v) : d.date ? fmtLong(v) : esc(v);
-  return `<div class="diff"><strong style="color:var(--gold-hi)">${esc(m.reply)}</strong>${m.diff.map((d) => `<span>${esc(d.label)}: ${d.from != null ? `<s>${f(d, d.from)}</s> → ` : ''}<ins>${f(d, d.to)}</ins></span>`).join('')}
+  return `<div class="diff"><strong style="color:var(--gold-hi)">${esc(m.reply)}</strong>${m.diff.map((d) => `<span>${esc(d.label)}: ${d.from !== undefined && d.from !== null ? `<s>${f(d, d.from)}</s> → ` : ''}<ins>${f(d, d.to)}</ins></span>`).join('')}
    ${m.state === 'applied' ? '<span class="status st-done">Applied</span>' : m.state === 'discarded' ? '<span class="label">Discarded</span>' : `<div style="display:flex;gap:8px;margin-top:6px"><button class="btn btn-gold btn-sm" data-act="apply" data-i="${i}">Apply changes</button><button class="btn btn-ghost btn-sm" data-act="discard" data-i="${i}">Discard</button></div>`}</div>`;
 }
 function openCopilot() {
@@ -833,7 +799,7 @@ function vendorModal(catId, i) {
 function callSheet(catId, vi) {
   const helper = S.route.name === 'helper', lang = helper ? S.lang : 'en', L = T[lang];
   const ev = helper ? S.h.event : S.ev, c = (helper ? S.h.mine : S.ev.cats).find((x) => x.id === catId);
-  const v = vi != null ? S.vendors[catId]?.vendors?.[vi] : null;
+  const v = vi !== null && vi !== undefined ? S.vendors[catId]?.vendors?.[vi] : null;
   openOverlay(`<div class="modal" role="dialog" aria-label="Call helper"><div class="mhead"><div><p class="label">${lang === 'ta' ? 'அழைப்பு உதவி' : 'Call helper'}</p><h2>${v ? esc(v.name) : esc(lang === 'ta' ? CAT_TA[c.id] || c.name : c.name)}</h2>${v?.phone ? `<p class="num" style="user-select:all">${esc(v.phone)}</p>` : ''}</div><button class="xbtn" data-act="close" aria-label="Close">${ic('x')}</button></div>
    <div class="script-box"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><b>${lang === 'ta' ? 'பேச வேண்டியது' : 'What to say'}</b><button class="btn btn-ghost btn-sm" data-act="speak" data-lang="${lang === 'ta' ? 'ta-IN' : 'en-IN'}">${ic('sound')}${lang === 'ta' ? 'படித்துக் காட்டு' : 'Read aloud'}</button></div><p id="script" style="margin:0">${esc(L.script(ev, c.name, c.id))}</p></div>
    <p style="margin:16px 0 8px;font-weight:500">${lang === 'ta' ? 'கேட்கும்போது டிக் செய்யுங்கள்' : 'Tick as you ask'}</p>
@@ -870,7 +836,7 @@ function linkReady(hid, tok) {
    <button class="btn btn-ghost" data-act="copytxt" data-target="lnk">${ic('copy')}Copy link</button><a class="btn btn-ghost" href="#/h/${tok}" target="_blank" rel="noopener">${ic('eye')}Open their view</a></div></div>`);
 }
 async function ensureToken(hid) {
-  let t = tokenFor(S.ev.id, hid);
+  const t = tokenFor(S.ev.id, hid);
   if (t) return t;
   const r = await api(`/api/events/${S.ev.id}/helpers`, { method: 'POST', body: { helperId: hid, name: S.ev.helpers[hid].name } });
   saveToken(S.ev.id, hid, r.token); S.ev = r.event; return r.token;
@@ -880,7 +846,7 @@ function summaryText(ev) {
 }
 function summaryModal() {
   const ev = S.ev, t = summaryText(ev);
-  $('#print').innerHTML = `<h1>${esc(ev.title)}</h1><p>${fmtLong(ev.date)} · ${esc(ev.city)} · ${ev.guests} guests · Budget ${inr(ev.budget)}</p>${ev.cats.map((c) => `<h3>${esc(c.name)} · cap ${inr(c.cap)} · due ${fmtD(c.due)}</h3><ul>${c.steps.map((s) => `<li>${s.done ? '☑' : '☐'} ${esc(s.t)}</li>`).join('')}</ul>`).join('')}<p>Planned with Utsav AI</p>`;
+  $('#print').innerHTML = `<h1>${esc(ev.title)}</h1><p>${fmtLong(ev.date)} · ${esc(ev.city)} · ${ev.guests} guests · Budget ${inr(ev.budget)}</p>${ev.cats.map((c) => `<h2>${esc(c.name)} · cap ${inr(c.cap)} · due ${fmtD(c.due)}</h2><ul>${c.steps.map((s) => `<li>${s.done ? '☑' : '☐'} ${esc(s.t)}</li>`).join('')}</ul>`).join('')}<p>Planned with Utsav AI</p>`;
   openOverlay(`<div class="modal" role="dialog" aria-label="Share summary"><div class="mhead"><div><h2>Share summary</h2><p>Paste it into the family group.</p></div><button class="xbtn" data-act="close" aria-label="Close">${ic('x')}</button></div>
    <textarea class="input" id="sumtxt" readonly style="min-height:220px">${esc(t)}</textarea>
    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" data-act="copytxt" data-target="sumtxt">${ic('copy')}Copy text</button><a class="btn btn-teal" href="https://wa.me/?text=${encodeURIComponent(t)}" target="_blank" rel="noopener">${ic('chat')}Open WhatsApp</a><button class="btn btn-ghost" data-act="print">${ic('doc')}Save as PDF</button></div></div>`);
@@ -909,6 +875,7 @@ document.addEventListener('click', async (e) => {
   const a = b.dataset.act, d = b.dataset;
   switch (a) {
     case 'close': closeOverlay(); break;
+    case 'skip': e.preventDefault(); $('#app').focus(); break;
     case 'retry': route(); break;
     case 'home': location.hash = '#/'; break;
     case 'signin': signIn(); break;
@@ -946,7 +913,7 @@ document.addEventListener('click', async (e) => {
       if (ok) { vendorModal(d.cat, +d.i); toast('Shortlist updated'); }
       break;
     }
-    case 'callsheet': callSheet(d.cat, d.v != null ? +d.v : null); break;
+    case 'callsheet': callSheet(d.cat, d.v !== undefined ? +d.v : null); break;
     case 'speak': {
       try { const u = new SpeechSynthesisUtterance($('#script').textContent); u.lang = d.lang; u.rate = .92; speechSynthesis.cancel(); speechSynthesis.speak(u); }
       catch { toast('Read aloud is not available in this browser.', true); }
@@ -1100,7 +1067,7 @@ document.addEventListener('change', (e) => {
   if (t.dataset.quote) hostOp({ type: 'setQuote', cat: t.dataset.quote, amount: Number(t.value.replace(/[^\d]/g, '')) || 0 });
   if (t.dataset.assign !== undefined && t.dataset.assign) hostOp({ type: 'assign', cat: t.dataset.assign, helper: t.value || null });
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (S.overlayOpen) closeOverlay(); else if (S.menu) { S.menu = false; render(); } } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Tab' && S.overlayOpen) trapTab(e); if (e.key === 'Escape') { if (S.overlayOpen) closeOverlay(); else if (S.menu) { S.menu = false; render(); } } });
 
 // ---------------------------------------------------------------- live updates
 async function poll() {

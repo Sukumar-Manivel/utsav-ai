@@ -5,8 +5,13 @@ import { app } from '../server.js';
 import { todayISO } from '../lib/plan.js';
 
 let server, base;
-const HOST = 'a'.repeat(48), OTHER = 'b'.repeat(48);
-before(async () => { server = app.listen(0); await new Promise((r) => server.once('listening', r)); base = `http://127.0.0.1:${server.address().port}`; });
+const HOST = 'a'.repeat(48),
+  OTHER = 'b'.repeat(48);
+before(async () => {
+  server = app.listen(0);
+  await new Promise((r) => server.once('listening', r));
+  base = `http://127.0.0.1:${server.address().port}`;
+});
 after(() => server.close());
 
 async function call(path, { method = 'GET', body, host, helper } = {}) {
@@ -16,7 +21,16 @@ async function call(path, { method = 'GET', body, host, helper } = {}) {
   const r = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, headers: r.headers, json: await r.json().catch(() => null) };
 }
-const plan = { type: 'wedding', tradition: 'tamil', city: 'Coimbatore', date: todayISO(60), guests: 300, budget: 1200000, funcs: ['Nalangu', 'Muhurtham', 'Reception'], food: ['Pure veg'] };
+const plan = {
+  type: 'wedding',
+  tradition: 'tamil',
+  city: 'Coimbatore',
+  date: todayISO(60),
+  guests: 300,
+  budget: 1200000,
+  funcs: ['Nalangu', 'Muhurtham', 'Reception'],
+  food: ['Pure veg'],
+};
 
 test('health and security headers', async () => {
   const r = await call('/api/health');
@@ -49,13 +63,24 @@ test('full host and helper flow with role-based access', async () => {
   assert.equal(mine.status, 200);
   const ev = mine.json.event;
   assert.equal(ev.tradition.id, 'tamil');
-  assert.deepEqual(ev.functions.map((f) => f.name), ['Nalangu', 'Muhurtham', 'Reception']);
-  assert.equal(ev.cats.reduce((a, c) => a + c.cap, 0), 1080000, 'caps are 90% of the budget');
+  assert.deepEqual(
+    ev.functions.map((f) => f.name),
+    ['Nalangu', 'Muhurtham', 'Reception'],
+  );
+  assert.equal(
+    ev.cats.reduce((a, c) => a + c.cap, 0),
+    1080000,
+    'caps are 90% of the budget',
+  );
   assert.ok(!('owners' in ev), 'owner ids are never sent to the browser');
 
   assert.equal((await call(`/api/events/${id}`, { host: OTHER })).status, 403, 'another browser cannot open the plan');
 
-  const add = await call(`/api/events/${id}/helpers`, { method: 'POST', host: HOST, body: { name: 'Sana', rel: 'Cousin', lang: 'ta', cat: 'food' } });
+  const add = await call(`/api/events/${id}/helpers`, {
+    method: 'POST',
+    host: HOST,
+    body: { name: 'Sana', rel: 'Cousin', lang: 'ta', cat: 'food' },
+  });
   assert.equal(add.status, 200);
   const token = add.json.token;
   assert.match(token, /^[A-Za-z0-9]{32}$/);
@@ -64,16 +89,34 @@ test('full host and helper flow with role-based access', async () => {
   const me = await call('/api/h/me', { helper: token });
   assert.equal(me.status, 200);
   assert.equal(me.json.event.budget, null, 'full budget is hidden from helpers');
-  assert.deepEqual(me.json.mine.map((c) => c.id), ['food']);
-  assert.ok(me.json.team.every((t) => !('cap' in t) && !('notes' in t)), 'team view has no caps or notes');
+  assert.deepEqual(
+    me.json.mine.map((c) => c.id),
+    ['food'],
+  );
+  assert.ok(
+    me.json.team.every((t) => !('cap' in t) && !('notes' in t)),
+    'team view has no caps or notes',
+  );
 
-  const own = await call('/api/h/op', { method: 'POST', helper: token, body: { type: 'toggleStep', cat: 'food', i: 0, done: true } });
+  const own = await call('/api/h/op', {
+    method: 'POST',
+    helper: token,
+    body: { type: 'toggleStep', cat: 'food', i: 0, done: true },
+  });
   assert.equal(own.status, 200);
   assert.equal(own.json.mine[0].steps[0].done, true);
 
-  const other = await call('/api/h/op', { method: 'POST', helper: token, body: { type: 'toggleStep', cat: 'venue', i: 0, done: true } });
+  const other = await call('/api/h/op', {
+    method: 'POST',
+    helper: token,
+    body: { type: 'toggleStep', cat: 'venue', i: 0, done: true },
+  });
   assert.equal(other.status, 403, 'a helper cannot edit another task');
-  const hostOnly = await call('/api/h/op', { method: 'POST', helper: token, body: { type: 'setCap', cat: 'food', amount: 1 } });
+  const hostOnly = await call('/api/h/op', {
+    method: 'POST',
+    helper: token,
+    body: { type: 'setCap', cat: 'food', amount: 1 },
+  });
   assert.equal(hostOnly.status, 403, 'a helper cannot change budget caps');
 
   const hid = add.json.helperId;
@@ -85,8 +128,14 @@ test('full host and helper flow with role-based access', async () => {
 
 test('helper chat falls back to a safe answer without AI', async () => {
   const id = (await call('/api/plan', { method: 'POST', host: HOST, body: plan })).json.id;
-  const token = (await call(`/api/events/${id}/helpers`, { method: 'POST', host: HOST, body: { name: 'Ravi', cat: 'venue' } })).json.token;
-  const r = await call('/api/h/ask', { method: 'POST', helper: token, body: { cat: 'venue', message: 'What is a fair price?' } });
+  const token = (
+    await call(`/api/events/${id}/helpers`, { method: 'POST', host: HOST, body: { name: 'Ravi', cat: 'venue' } })
+  ).json.token;
+  const r = await call('/api/h/ask', {
+    method: 'POST',
+    helper: token,
+    body: { cat: 'venue', message: 'What is a fair price?' },
+  });
   assert.equal(r.status, 200);
   assert.ok(r.json.reply.length > 20);
 });
@@ -104,7 +153,11 @@ test('sample plan, my events list and host-only ops', async () => {
   assert.ok(list.json.events.some((e) => e.id === id && e.ready > 0));
   assert.deepEqual((await call('/api/events')).json, { events: [] }, 'no key, no events');
 
-  const cap = await call(`/api/events/${id}/op`, { method: 'POST', host: KEY, body: { type: 'setCap', cat: 'food', amount: 95000 } });
+  const cap = await call(`/api/events/${id}/op`, {
+    method: 'POST',
+    host: KEY,
+    body: { type: 'setCap', cat: 'food', amount: 95000 },
+  });
   assert.equal(cap.status, 200);
   assert.equal(cap.json.event.cats.find((c) => c.id === 'food').cap, 95000);
   const bad = await call(`/api/events/${id}/op`, { method: 'POST', host: KEY, body: { type: 'dropTable' } });
@@ -114,15 +167,34 @@ test('sample plan, my events list and host-only ops', async () => {
 test('co-pilot previews a change and applies it only when asked', async () => {
   const KEY = 'd'.repeat(48);
   const id = (await call('/api/plan', { method: 'POST', host: KEY, body: plan })).json.id;
-  const preview = await call(`/api/events/${id}/copilot`, { method: 'POST', host: KEY, body: { message: 'Cut budget by 10%' } });
+  const preview = await call(`/api/events/${id}/copilot`, {
+    method: 'POST',
+    host: KEY,
+    body: { message: 'Cut budget by 10%' },
+  });
   assert.equal(preview.status, 200);
   assert.equal(preview.json.changes.budgetPct, -10);
-  assert.equal((await call(`/api/events/${id}`, { host: KEY })).json.event.budget, 1200000, 'nothing changes before apply');
-  const applied = await call(`/api/events/${id}/copilot/apply`, { method: 'POST', host: KEY, body: { changes: preview.json.changes } });
+  assert.equal(
+    (await call(`/api/events/${id}`, { host: KEY })).json.event.budget,
+    1200000,
+    'nothing changes before apply',
+  );
+  const applied = await call(`/api/events/${id}/copilot/apply`, {
+    method: 'POST',
+    host: KEY,
+    body: { changes: preview.json.changes },
+  });
   assert.equal(applied.status, 200);
   assert.equal(applied.json.event.budget, 1080000);
-  assert.equal(applied.json.event.cats.reduce((a, c) => a + c.cap, 0), 972000, 'caps still equal 90% of the new budget');
-  assert.equal((await call(`/api/events/${id}/copilot`, { method: 'POST', host: KEY, body: { message: '   ' } })).status, 422);
+  assert.equal(
+    applied.json.event.cats.reduce((a, c) => a + c.cap, 0),
+    972000,
+    'caps still equal 90% of the new budget',
+  );
+  assert.equal(
+    (await call(`/api/events/${id}/copilot`, { method: 'POST', host: KEY, body: { message: '   ' } })).status,
+    422,
+  );
 });
 
 test('vendors come back labelled when live search is off', async () => {

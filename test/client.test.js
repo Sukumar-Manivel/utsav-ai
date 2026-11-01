@@ -40,7 +40,10 @@ test('English and Tamil text cover the same keys', () => {
 
 test('every tradition is well formed', () => {
   for (const [type, list] of Object.entries(TRADITIONS)) {
-    assert.ok(list.some((t) => t.id === 'custom'), `${type} offers a custom mix`);
+    assert.ok(
+      list.some((t) => t.id === 'custom'),
+      `${type} offers a custom mix`,
+    );
     for (const t of list) {
       assert.equal(new Set(t.cats).size, 6, `${type}/${t.id} has six distinct categories`);
       t.cats.forEach((c) => assert.ok(CAT_LIB[c], `${type}/${t.id} category ${c} exists`));

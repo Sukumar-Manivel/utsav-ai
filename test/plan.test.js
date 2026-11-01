@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   splitBudget, buildPlan, validateInput, samplePlan, applyOp, OpError, redactForHelper,
-  applyCopilotChanges, ruleCopilot, todayISO, addDaysISO, catPct, readyPct,
+  applyCopilotChanges, ruleCopilot, todayISO, addDaysISO, catPct, readyPct, newId,
 } from '../lib/plan.js';
 
 test('budget caps plus 10% buffer add up to the total exactly', () => {
@@ -84,4 +84,11 @@ test('tradition shapes categories, functions and tagged tasks', () => {
 test('unknown tradition falls back to the first one for the type', () => {
   const { value } = validateInput({ type: 'birthday', tradition: 'nope', city: 'Chennai', date: todayISO(20), guests: 50, budget: 100000, funcs: [] });
   assert.equal(value.tradition, 'milestone');
+});
+
+test('ids and helper tokens always have the requested length', () => {
+  for (let i = 0; i < 2000; i++) {
+    assert.match(newId(32), /^[A-Za-z0-9]{32}$/);
+    assert.match(newId(10), /^[A-Za-z0-9]{10}$/);
+  }
 });

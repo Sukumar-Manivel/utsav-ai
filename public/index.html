@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Utsav AI · Plan together, celebrate together</title>
+<meta name="description" content="Utsav AI plans Indian weddings, birthdays and community events with Gemini, then splits the work across the family and coaches every helper.">
+<meta name="theme-color" content="#0B0D18">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 5c3 4 3.5 7 0 11-3.5-4-3-7 0-11z' fill='%23F7D08A'/%3E%3Cpath d='M6 22h28c-1.5 6-7 9-14 9S7.5 28 6 22z' fill='%23C9883C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Jost:wght@300;400;500;600&family=Mrs+Saint+Delafield&family=Noto+Sans+Tamil:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true">
+  <div class="stars" id="stars"></div>
+  <svg class="hills" viewBox="0 0 1440 400" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="mtn1" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3A2A30"/><stop offset="1" stop-color="#1A1418"/></linearGradient>
+      <linearGradient id="mtn2" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22191E"/><stop offset="1" stop-color="#110D11"/></linearGradient>
+      <radialGradient id="horizon" cx=".5" cy="1" r=".7"><stop offset="0" stop-color="#E08A4F" stop-opacity=".55"/><stop offset="1" stop-color="#E08A4F" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect x="0" y="0" width="1440" height="400" fill="url(#horizon)"/>
+    <path d="M0 60 L90 20 L170 42 L260 0 L360 36 L450 8 L560 45 L660 22 L760 52 L880 15 L980 40 L1090 5 L1200 38 L1300 18 L1440 45 L1440 400 L0 400Z" fill="url(#mtn1)" opacity=".85"/>
+    <path d="M0 110 L120 78 L230 102 L340 70 L470 105 L600 82 L720 108 L850 76 L980 104 L1120 80 L1250 106 L1360 84 L1440 98 L1440 400 L0 400Z" fill="url(#mtn2)"/>
+  </svg>
+  <img class="corner corner-l" src="/assets/bg-left.jpg" alt="">
+  <img class="corner corner-r" src="/assets/bg-right.jpg" alt="">
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-venue" viewBox="0 0 32 32"><path d="M4 27h24M7 27V14M25 27V14M3 14l13-8 13 8M11 27v-9h10v9M14 18v9M18 18v9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="i-guests" viewBox="0 0 32 32"><circle cx="11" cy="10" r="4" fill="currentColor"/><circle cx="21.5" cy="11" r="3.4" fill="currentColor" opacity=".8"/><path d="M3.5 25c0-4.6 3.4-8 7.5-8s7.5 3.4 7.5 8z" fill="currentColor"/><path d="M17 25c.3-3.9 2.2-6.8 4.6-6.8 2.8 0 5 3 5 6.8z" fill="currentColor" opacity=".8"/></symbol>
+<symbol id="i-transport" viewBox="0 0 32 32"><rect x="6" y="5" width="20" height="19" rx="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 15h20M10 24v3M22 24v3M9 9h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="11" cy="20" r="1.4" fill="currentColor"/><circle cx="21" cy="20" r="1.4" fill="currentColor"/></symbol>
+<symbol id="i-food" viewBox="0 0 32 32"><path d="M5 22a11 11 0 0 1 22 0z" fill="currentColor" opacity=".9"/><path d="M3 25h26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="9.5" r="1.8" fill="currentColor"/></symbol>
+<symbol id="i-decor" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3.4" fill="currentColor"/><ellipse cx="16" cy="8" rx="3.6" ry="4.6" fill="currentColor" opacity=".9"/><ellipse cx="16" cy="24" rx="3.6" ry="4.6" fill="currentColor" opacity=".9"/><ellipse cx="8" cy="16" rx="4.6" ry="3.6" fill="currentColor" opacity=".9"/><ellipse cx="24" cy="16" rx="4.6" ry="3.6" fill="currentColor" opacity=".9"/></symbol>
+<symbol id="i-entertainment" viewBox="0 0 32 32"><path d="M12 24V8l14-3v15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><ellipse cx="8.5" cy="24" rx="4" ry="3.3" fill="currentColor"/><ellipse cx="22.5" cy="20" rx="4" ry="3.3" fill="currentColor"/></symbol>
+<symbol id="i-music" viewBox="0 0 32 32"><path d="M7 20c3-1 4-5 9-5s6 4 9 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 15V5M13 6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 21l-3 7M23 21l3 7M16 21v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+<symbol id="i-photos" viewBox="0 0 32 32"><path d="M5 11h5l2.5-4h7L22 11h5v15H5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="16" cy="18" r="4.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L3 10.5l7 2.5 2.5 7z" fill="currentColor"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M10 3l1.6 4.8L16.5 9.5l-4.9 1.7L10 16l-1.6-4.8L3.5 9.5l4.9-1.7zM18 13l.9 2.3 2.3.9-2.3.9L18 19.4l-.9-2.3-2.3-.9 2.3-.9z" fill="currentColor"/></symbol>
+<symbol id="i-cake" viewBox="0 0 24 24"><path d="M4 20h16v-7H4zM4 15.5c2 1 3-1 4.5 0s3 1 4 0 3-1 4 0 2.5 1 3.5 0M8 13V9.5M12 13V9.5M16 13V9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 7c.6-.8.6-1.6 0-2.5-.6.9-.6 1.7 0 2.5zM12 7c.6-.8.6-1.6 0-2.5-.6.9-.6 1.7 0 2.5zM16 7c.6-.8.6-1.6 0-2.5-.6.9-.6 1.7 0 2.5z" fill="#F2957A"/></symbol>
+<symbol id="i-rings" viewBox="0 0 24 24"><circle cx="9" cy="14" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15" cy="14" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3l1.5 2-1.5 1.5L10.5 5z" fill="#F2957A"/></symbol>
+<symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 19a6 6 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="9" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 14.2a4.8 4.8 0 0 1 5.5 4.8" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+<symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7.5" ry="2.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 6.5v4c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-4M4.5 10.5v4c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-4M4.5 14.5v3c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M6 12.5l4 4L18 8.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.9A8 8 0 1 1 21 12z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-saved" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z" fill="currentColor"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4 16V5a1 1 0 0 1 1-1h11" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19zM12 10v4M12 17.5v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-orbit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-20 12 12)" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l12-3v3M16 13.5h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9c0 1.7 1.3 3 3 3s2.7-1.3 2.7-3c0 1.7 1.3 3 2.3 3s2.3-1.3 2.3-3c0 1.7 1 3 2.7 3s3-1.3 3-3M10 20v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-google" viewBox="0 0 24 24"><path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853"/><path d="M6.4 14a6 6 0 0 1 0-3.9V7.5H3.1a10 10 0 0 0 0 9z" fill="#FBBC05"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335"/></symbol>
+<symbol id="i-lamp" viewBox="0 0 40 40"><path d="M20 5c3 4 3.5 7 0 11-3.5-4-3-7 0-11z" fill="#F7D08A"/><path d="M6 22h28c-1.5 6-7 9-14 9S7.5 28 6 22z" fill="#C9883C"/><path d="M14 32h12l-2 3h-8z" fill="#9B6328"/></symbol>
+</defs></svg>
+
+<div id="app" aria-live="polite"></div>
+<div id="overlay"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<div id="print"></div>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

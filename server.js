@@ -1,3 +1,5 @@
+// Utsav AI server: JSON API under /api and the static single-page app.
+// Every write goes through applyOp() in lib/plan.js, so permissions live in one place.
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,13 +27,18 @@ if (PROJECT) {
 await initStore(fbApp);
 await initAI();
 
-const app = express();
+export const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 app.use(express.json({ limit: '64kb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), payment=(), microphone=(self)');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); // Google sign-in opens a popup
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
   next();
 });
 
@@ -270,4 +277,5 @@ app.use('/api', (req, res) => fail(res, 404, 'NOT_FOUND', 'Unknown API route.'))
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: 'index.html' }));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => console.log(`Utsav AI on :${PORT} · AI ${aiEnabled() ? 'on' : 'off'} · Places ${placesEnabled() ? 'on' : 'off'} · store ${storeMode()}`));
+// Start listening only when run directly (tests import the app instead).
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) app.listen(PORT, () => console.log(`Utsav AI on :${PORT} · AI ${aiEnabled() ? 'on' : 'off'} · Places ${placesEnabled() ? 'on' : 'off'} · store ${storeMode()}`));

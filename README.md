@@ -7,9 +7,7 @@ Utsav AI turns a wedding, birthday or community event into a full plan in second
 
 > Built for families, not agencies.
 
-Live app: [Utsav AI Live Demo](https://utsav-ai-510810666377.asia-south1.run.app)
-
-Demo video: [Watch Utsav AI Demo](https://youtu.be/hEyg1QWsZZM)
+**Live app:** https://utsav-ai-510810666377.asia-south1.run.app · **Demo video:** https://youtu.be/hEyg1QWsZZM
 
 ---
 
@@ -57,7 +55,7 @@ flowchart LR
   Host((Host)) -->|Google sign-in or browser key| Web[Utsav AI web app]
   Helper((Helper)) -->|private link /h/token| Web
   Web --> API[Express API on Cloud Run]
-  API --> Gemini[Gemini 2.5 Flash]
+  API --> Gemini[Gemini Flash]
   API --> Places[Google Places API New]
   API --> FS[(Cloud Firestore)]
   API --> Auth[Firebase Auth token check]
@@ -77,19 +75,23 @@ flowchart LR
 | Helper | Random 32-character link token, stored only as a SHA-256 hash | Read the team board; update steps, notes, quotes and shortlist on **their own** category only (403 otherwise) |
 | Anyone else | — | Nothing. Revoked links return "This link is no longer active" |
 
-Rate limits on AI and vendor routes (20/min per IP), input validation on every route, `nosniff` and referrer headers.
+Rate limits on AI and vendor routes (20/min per IP), input validation on every route, user text always HTML-escaped before rendering, JSON-only errors without stack traces, and security headers (`nosniff`, `X-Frame-Options: DENY`, `Permissions-Policy`, HSTS on HTTPS, `no-store` on the API). Helper link tokens are 32 random characters and only their SHA-256 hash is stored.
 
 ## Tech
 
-Node.js 22 · Express · `@google/genai` (Gemini 2.5 Flash, JSON output) · Google Places API (New) · Firebase Auth + Firebase Admin · Cloud Firestore · Google Cloud Run. Frontend is dependency-free HTML, CSS and JavaScript (Cormorant Garamond, Jost, Mrs Saint Delafield, Noto Sans Tamil).
+Node.js 22 · Express · `@google/genai` (Gemini Flash family, JSON output; `GEMINI_MODEL` picks the model and the app falls back to other Flash models when one is busy or out of quota) · Google Places API (New) · Firebase Auth + Firebase Admin · Cloud Firestore · Google Cloud Run. Frontend is dependency-free HTML, CSS and JavaScript (Cormorant Garamond, Jost, Mrs Saint Delafield, Noto Sans Tamil).
 
 ```
 server.js        Express app, routes, auth, rate limit
 lib/plan.js      plan building, budget maths, permissions, helper redaction, co-pilot rules
 lib/ai.js        Gemini + Places with fallbacks
 lib/store.js     Firestore (Cloud Run) or memory (local)
-public/          index.html, styles.css, app.js, assets/
-test/            node:test unit tests
+public/app.js        views, router, event handlers
+public/js/util.js    escaping, ₹ and date formatting, progress maths (pure, unit-tested)
+public/js/i18n.js    English and Tamil text for helpers, red flags, step hints
+public/traditions.js regional traditions and their functions, shared by server and browser
+test/                node:test unit and API tests
+scripts/a11y-check.mjs  axe-core accessibility audit of every screen
 ```
 
 ## Run locally
@@ -120,10 +122,25 @@ gcloud run deploy utsav-ai --source . --region asia-south1 --allow-unauthenticat
 
 Firestore (Mumbai, production mode) must exist. Client access is denied by `firestore.rules`; the server uses its service account.
 
+## Accessibility
+
+Checked with axe-core against WCAG 2.1 A/AA on 20 screens (desktop and phone): **0 issues** (`npm run a11y`).
+
+- Skip link, one `<main>` landmark and one `<h1>` per page; page title changes with every view.
+- Dialogs use `role="dialog"` and `aria-modal`, move focus inside, keep Tab inside, close on Escape and return focus to the button that opened them.
+- Focus stays on the same control after the screen re-renders (ticking a step, switching tabs).
+- Every icon button has a text name; decorative SVGs are `aria-hidden`; status is shown in words, not only colour.
+- The helper app sets `lang="ta"` when Tamil is chosen, so screen readers switch voice.
+- Visible focus rings, large touch targets on the phone app, and `prefers-reduced-motion` turns animations off.
+
 ## Tests
 
-`npm test` covers budget maths (caps + buffer always equal the total), due dates, input validation, helper permissions (403 on another helper's task and on host-only actions), helper redaction (no full budget, no other helpers' notes or quotes) and co-pilot changes.
+```
+npm run check          # ESLint + 25 tests
+npm run test:coverage  # line coverage report
+```
 
----
-
-Made with Google Antigravity, Gemini, Google Maps Platform, Firebase and Cloud Run for PromptWars Virtual 2026.
+- **Plan logic** (`test/plan.test.js`): caps + 10% buffer always equal the total, due dates, validation, tradition functions and their dated tasks, helper permissions and redaction, co-pilot changes, token length.
+- **API** (`test/api.test.js`): the real Express app on a random port: security headers, 401/403/404/422 paths, full host → helper flow, a helper blocked from another task and from host-only actions, revoked links, co-pilot preview vs apply, labelled example vendors.
+- **Browser modules** (`test/client.test.js`): HTML escaping, ₹ formatting, progress maths, English/Tamil text parity, every tradition well formed.
+- **AI fallback** (`test/ai.test.js`): skips a model whose quota is used up and retries a busy one.

@@ -7,12 +7,24 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --watch --env-file-if-exists=.env server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
+    "lint": "eslint .",
+    "a11y": "node scripts/a11y-check.mjs",
+    "check": "npm run lint && npm test"
   },
-  "engines": { "node": ">=20.12" },
+  "engines": {
+    "node": ">=20.12"
+  },
   "dependencies": {
     "@google/genai": "^1.20.0",
     "express": "^4.21.2",
     "firebase-admin": "^12.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "axe-core": "^4.14.0",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0"
   }
 }
